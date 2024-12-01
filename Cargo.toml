@@ -1,0 +1,25 @@
+[workspace]
+resolver = "2"
+members = ["neuron_procmacro", "example_project"]
+
+[package]
+name = "neuron-engine"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+neuron-procmacro = { path = "neuron_procmacro" }
+thiserror = "2.0"
+anyhow = "1.0"
+winit = { version = "0.30", features = [ ] }
+bytemuck = "1.20"
+pollster = "0.4"
+log = "0.4"
+uuid = "1.11"
+rand = "0.8"
+mint = "0.5"
+cgmath = "0.18"
+wgpu = "23.0"
+
+[profile.dev.package."*"]
+opt-level = 3
