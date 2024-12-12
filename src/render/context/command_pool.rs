@@ -1,3 +1,4 @@
+use std::ops::Deref;
 use std::sync::Arc;
 use ash::prelude::VkResult;
 use ash::vk;
@@ -26,8 +27,8 @@ impl CommandPool {
     }
 
     pub fn allocate_command_buffer_set(&self) -> VkResult<FrameSet<vk::CommandBuffer>> {
-        let command_buffers = self.allocate_command_buffers(2)?;
-        Ok(FrameSet::from([command_buffers[0], command_buffers[1]]))
+        let command_buffers = self.allocate_command_buffers(MAX_FRAMES_IN_FLIGHT)?;
+        Ok(FrameSet::from(command_buffers))
     }
 
     pub fn allocate_command_buffers(&self, count: usize) -> VkResult<Vec<vk::CommandBuffer>> {
@@ -36,6 +37,27 @@ impl CommandPool {
                 .level(vk::CommandBufferLevel::PRIMARY)
                 .command_buffer_count(count as u32)
                 .command_pool(self.pool))
+        }
+    }
+
+    pub fn queue_family(&self) -> u32 {
+        self.queue_family
+    }
+}
+
+impl Deref for CommandPool {
+    type Target = vk::CommandPool;
+
+    fn deref(&self) -> &Self::Target {
+        &self.pool
+    }
+}
+
+impl Drop for CommandPool {
+    fn drop(&mut self) {
+        unsafe {
+            let _ = self.vulkan_context.device().wait_queues(self.queue_family);
+            self.vulkan_context.device().destroy_command_pool(self.pool, None);
         }
     }
 }

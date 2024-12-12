@@ -664,6 +664,18 @@ impl Device {
     pub fn wait_idle(&self) -> VkResult<()> {
         unsafe { self.device.device_wait_idle() }
     }
+
+    pub fn wait_queues(&self, family: u32) -> VkResult<()> {
+        unsafe {
+            if let Some(queues) = self.queues.get(&family) {
+                for q in queues {
+                    self.queue_wait_idle(q.clone())?;
+                }
+            }
+        }
+
+        Ok(())
+    }
 }
 
 impl Deref for Device {

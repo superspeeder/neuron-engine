@@ -1,18 +1,28 @@
-use std::ffi::c_int;
+use std::ffi::{c_int, c_void};
 use ash::{khr, vk};
 use ash::vk::{xcb_connection_t, Display, VisualID};
 use winit::raw_window_handle::RawDisplayHandle;
 use crate::render::context::instance::Instance;
 
 #[cfg(target_os = "linux")]
-unsafe fn grab_visualid_xlib(display: *mut Display, screen: c_int) -> VisualID {
-    (*x11::xlib::XDefaultVisual(display as *mut _, screen)).visualid as VisualID
+#[link(name = "X11", kind = "dylib")]
+unsafe extern "C" {
+    fn XVisualIDFromVisual(visual: *mut c_void) -> VisualID;
+    fn XDefaultVisual(display: *mut Display, screen: c_int) -> *mut c_void;
 }
 
 #[cfg(target_os = "linux")]
+unsafe fn grab_visualid_xlib(display: *mut Display, screen: c_int) -> VisualID {
+    unsafe {
+        XVisualIDFromVisual(XDefaultVisual(display, screen))
+    }
+}
+#[cfg(target_os = "linux")]
 unsafe fn grab_visualid_xcb(connection: *mut xcb_connection_t, screen: c_int) -> VisualID {
-    let conn = xcb::Connection::from_raw_conn(connection as *mut _);
-    conn.get_setup().roots().nth(screen as _).unwrap().root_visual() as VisualID
+    unsafe {
+        let conn = xcb::Connection::from_raw_conn(connection as *mut _);
+        conn.get_setup().roots().nth(screen as _).unwrap().root_visual() as VisualID
+    }
 }
 
 #[cfg(not(target_os = "linux"))]

@@ -6,7 +6,6 @@ use neuron_engine::ash::vk::{CommandBufferResetFlags, QueueFamilyProperties};
 use neuron_engine::ash::{ext, vk};
 use neuron_engine::render::context::VulkanContext;
 use neuron_engine::render::context::command_pool::CommandPool;
-use neuron_engine::render::context::device::Device;
 use neuron_engine::render::context::instance::Instance;
 use neuron_engine::render::context::queues::QueueLabel;
 use neuron_engine::render::frame_set::FrameSet;
@@ -17,6 +16,7 @@ use std::sync::Arc;
 
 pub const NAME: &str = "Neuron Example Application";
 
+#[allow(dead_code)]
 struct State {
     vulkan_context: Arc<VulkanContext>,
     command_pool: CommandPool,
@@ -102,7 +102,7 @@ impl Application for MyApp {
 
     fn on_redraw_window(
         &mut self,
-        event_loop: &ActiveEventLoop,
+        _event_loop: &ActiveEventLoop,
         window_id: WindowId,
         engine: &mut Engine,
     ) {
@@ -113,7 +113,7 @@ impl Application for MyApp {
         if let Some(window) = engine.get_window(&window_id) {
             window
                 .borrow_mut()
-                .render_frame(|window, image| {
+                .render_frame(|_window, image| {
                     let command_buffer = state.command_buffers[image.current_frame()].clone();
                     let vulkan = engine.vulkan();
                     let device = vulkan.device();

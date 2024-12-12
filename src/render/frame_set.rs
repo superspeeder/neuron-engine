@@ -70,3 +70,9 @@ impl<T> From<[T; MAX_FRAMES_IN_FLIGHT]> for FrameSet<T> {
         Self(value)
     }
 }
+
+impl<T> From<Vec<T>> for FrameSet<T> where for <'a> &'a[T]: TryInto<[T; MAX_FRAMES_IN_FLIGHT]> {
+    fn from(value: Vec<T>) -> Self {
+        Self(value.as_slice()[..MAX_FRAMES_IN_FLIGHT].try_into().ok().unwrap())
+    }
+}
