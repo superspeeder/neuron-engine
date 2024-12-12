@@ -5,3 +5,6 @@ edition = "2024"
 
 [dependencies]
 neuron-engine = { path = ".." }
+anyhow = "1.0.93"
+log = "0.4.22"
+env_logger = { version = "0.11", features = [ "humantime", "auto-color" ] }
