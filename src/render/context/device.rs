@@ -7,13 +7,13 @@ use crate::render::context::instance::Instance;
 use crate::render::context::platform;
 use crate::render::context::queues::{QueueLabel, QueueLabels, QueueRef, UnlabeledQueues};
 use anyhow::anyhow;
+use ash::prelude::VkResult;
 use ash::{khr, vk};
 use log::{debug, info, trace, warn};
 use std::collections::{HashMap, HashSet};
 use std::ffi::{CStr, CString, c_char};
 use std::iter::repeat_n;
 use std::ops::{Deref, DerefMut};
-use ash::prelude::VkResult;
 use winit::event_loop::EventLoop;
 use winit::raw_window_handle::HasDisplayHandle;
 
@@ -36,6 +36,15 @@ pub struct Device {
     queue_labels: QueueLabels,
     unlabeled_queues: UnlabeledQueues,
     loader: DeviceLoader,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub enum LazyQueue {
+    Labeled(QueueLabel),
+    Unlabeled(u32),
+    Direct(u32, vk::Queue),
+    Family(u32),
+    Ref(QueueRef),
 }
 
 impl Device {
@@ -381,8 +390,7 @@ impl Device {
                         *available -= count;
                     }
 
-                    let flexible_range =
-                        flexible_starts.get(&family).cloned().unwrap_or(0)..total;
+                    let flexible_range = flexible_starts.get(&family).cloned().unwrap_or(0)..total;
                     let mut o_index = 0;
 
                     trace!(
@@ -650,15 +658,24 @@ impl Device {
     }
 
     pub fn get_labeled_queue_ref(&self, label: QueueLabel) -> Option<QueueRef> {
-        self.queue_labels.get(&label).and_then(|v| v.first()).cloned()
+        self.queue_labels
+            .get(&label)
+            .and_then(|v| v.first())
+            .cloned()
     }
 
     pub fn get_labeled_queue(&self, label: QueueLabel) -> Option<vk::Queue> {
-        self.queue_labels.get(&label).and_then(|v| v.first()).and_then(|qr| self.get_queue(qr.clone()))
+        self.queue_labels
+            .get(&label)
+            .and_then(|v| v.first())
+            .and_then(|qr| self.get_queue(qr.clone()))
     }
 
     pub fn get_queue(&self, queue_ref: QueueRef) -> Option<vk::Queue> {
-        self.queues.get(&queue_ref.family).and_then(|queues| queues.get(queue_ref.index as usize)).cloned()
+        self.queues
+            .get(&queue_ref.family)
+            .and_then(|queues| queues.get(queue_ref.index as usize))
+            .cloned()
     }
 
     pub fn wait_idle(&self) -> VkResult<()> {
@@ -675,6 +692,25 @@ impl Device {
         }
 
         Ok(())
+    }
+
+    pub fn get_unlabeled_queue(&self, family: u32) -> Option<vk::Queue> {
+        self.unlabeled_queues
+            .get(&family)
+            .and_then(|indices| indices.iter().next().cloned())
+            .and_then(|index| self.get_queue(QueueRef { family, index }))
+    }
+
+    pub fn get_lazy_queue(&self, queue: LazyQueue) -> Option<(u32, vk::Queue)> {
+        match queue {
+            LazyQueue::Labeled(label) => self
+                .get_labeled_queue_ref(label)
+                .and_then(|qr| Some((qr.family, self.get_queue(qr)?))),
+            LazyQueue::Unlabeled(family) => Some((family, self.get_unlabeled_queue(family)?)),
+            LazyQueue::Direct(family, q) => Some((family, q)),
+            LazyQueue::Family(family) => Some((family, self.get_queue_by_family(family))),
+            LazyQueue::Ref(qr) => self.get_queue(qr),
+        }
     }
 }
 
@@ -694,7 +730,6 @@ impl DerefMut for Device {
 pub struct DeviceLoader {
     swapchain: khr::swapchain::Device,
 }
-
 
 impl DeviceLoader {
     pub fn load(instance: &ash::Instance, device: &ash::Device) -> Self {

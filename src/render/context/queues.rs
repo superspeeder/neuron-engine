@@ -11,7 +11,7 @@ pub enum QueueLabel {
     Custom(&'static str),
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub struct QueueRef {
     pub family: u32,
     pub index: u32,
